@@ -16,8 +16,10 @@ import numpy as np
 
 import sys
 
-def buildNetwork(N, data):
-    dimension = len(data)
+WINDOW_SIZE = 1024
+
+def buildNetwork(N):
+    dimension = WINDOW_SIZE
     inLayer = LinearLayer(dimension)
     hiddenLayer = SigmoidLayer(N)
     outLayer = LinearLayer(dimension)
@@ -40,15 +42,35 @@ def buildNetwork(N, data):
     net.sortModules()
     return net
 
-def trainNetwork(net, data_):
-    dimension = len(data_)
-    data = np.copy(data_)
-    data.shape = (1, dimension)
+def get_result(net, data):
+    dimension = WINDOW_SIZE
+    num_windows = int(len(data) / WINDOW_SIZE)
+    output = np.ndarray(shape=data.shape, dtype=data.dtype)
+    for offset in range(0, num_windows):
+        lower = offset*WINDOW_SIZE
+        upper = min(len(data), (offset+1)*WINDOW_SIZE)
+        test_input = rfft(np.copy(data[lower:upper]))
+        test_input.shape = (1, WINDOW_SIZE)
+        test_output = net.activate(test_input)
+        #test_output = test_input
+        test_output.shape = (WINDOW_SIZE,)
+        transformed_output = irfft(test_output)
+        print(transformed_output.shape)
+        print(data[lower:upper].shape)
+        output[lower:upper] = transformed_output
+    return output
+
+def trainNetwork(net, data):
+    dimension = WINDOW_SIZE
     ds = SupervisedDataSet(dimension, dimension)
-    for i in range(100):
-        test_input = np.copy(data)
-        test_input += np.random.random(dimension) * 0.5
-        ds.appendLinked(test_input, data)
+    num_windows = int(len(data) / WINDOW_SIZE)
+    for offset in range(0, num_windows):
+        lower = offset*WINDOW_SIZE
+        upper = min(len(data), (offset+1)*WINDOW_SIZE)
+        test_input = rfft(np.copy(data[lower:upper]))
+        test_input.shape = (1, WINDOW_SIZE)
+        test_output = np.copy(test_input)
+        ds.appendLinked(test_input, test_output)
     trainer = BackpropTrainer(net, dataset=ds)
     for i in range(10):
         print("epoch {}".format(i))
@@ -66,8 +88,8 @@ if len(sys.argv) != 4:
     sys.exit(1)
 
 sample_rate, data = wavfile.read(sys.argv[2])
-#left_channel = data.T[0]
-left_channel = data
+left_channel = data.T[0]
+#left_channel = data
 
 num_samples = min(len(left_channel), int(sample_rate*2))
 sample = left_channel[:num_samples]
@@ -77,12 +99,9 @@ normalized = np.array(sample)/scaling
 transformed = normalized
 
 NUM_HIDDEN = int(sys.argv[1])
-net = buildNetwork(NUM_HIDDEN, transformed)
+net = buildNetwork(NUM_HIDDEN)
 trainNetwork(net, transformed)
-transformed_result = net.activate(transformed)
-
-zero_activation = net.activate(np.zeros(len(transformed)))
-print(np.max(np.abs(zero_activation-transformed)))
+transformed_result = get_result(net, transformed)
 
 denormalized_result = (transformed_result * scaling).astype(sample.dtype)
 print(np.max(np.abs(transformed_result-transformed)))
