@@ -3,6 +3,7 @@
 from scipy.fftpack import rfft, irfft, fftfreq
 from scipy.io import wavfile
 from pybrain.structure import FeedForwardNetwork
+from pybrain.structure import RecurrentNetwork
 from pybrain.structure import LinearLayer, SigmoidLayer
 from pybrain.structure import FullConnection
 from pybrain.structure import BiasUnit
@@ -26,13 +27,14 @@ def buildNetwork(N, data):
     #bias_to_out = FullConnection(bias, outLayer)
     #bias_to_hidden = FullConnection(bias, hiddenLayer)
 
-    net = FeedForwardNetwork()
+    net = RecurrentNetwork()
     #net.addModule(bias)
     net.addInputModule(inLayer)
     net.addModule(hiddenLayer)
     net.addOutputModule(outLayer)
     net.addConnection(in_to_hidden)
     net.addConnection(hidden_to_out)
+    net.addRecurrentConnection(FullConnection(hiddenLayer, hiddenLayer))
     #net.addConnection(bias_to_hidden)
     #net.addConnection(bias_to_out)
     net.sortModules()
