@@ -11,7 +11,6 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.datasets import SupervisedDataSet
 from pybrain.utilities import percentError
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 import sys
@@ -23,6 +22,7 @@ def buildNetwork(N):
     inLayer = LinearLayer(dimension)
     hiddenLayer = SigmoidLayer(N)
     outLayer = LinearLayer(dimension)
+    # bias disabled, too much over training
     #bias = BiasUnit(name='bias')
     in_to_hidden = FullConnection(inLayer, hiddenLayer)
     hidden_to_out = FullConnection(hiddenLayer, outLayer)
@@ -52,11 +52,8 @@ def get_result(net, data):
         test_input = rfft(np.copy(data[lower:upper]))
         test_input.shape = (1, WINDOW_SIZE)
         test_output = net.activate(test_input)
-        #test_output = test_input
         test_output.shape = (WINDOW_SIZE,)
         transformed_output = irfft(test_output)
-        print(transformed_output.shape)
-        print(data[lower:upper].shape)
         output[lower:upper] = transformed_output
     return output
 
@@ -95,25 +92,14 @@ num_samples = min(len(left_channel), int(sample_rate*2))
 sample = left_channel[:num_samples]
 scaling = np.iinfo(sample.dtype).max
 normalized = np.array(sample)/scaling
-#transformed = rfft(normalized)
-transformed = normalized
 
 NUM_HIDDEN = int(sys.argv[1])
 net = buildNetwork(NUM_HIDDEN)
-trainNetwork(net, transformed)
-transformed_result = get_result(net, transformed)
+trainNetwork(net, noramlized)
+noramlized_result = get_result(net, transformed)
 
-denormalized_result = (transformed_result * scaling).astype(sample.dtype)
-print(np.max(np.abs(transformed_result-transformed)))
-print(np.max(np.abs(denormalized_result-sample)))
-#result = irfft(denormalized_result).astype(sample.dtype)
-result = denormalized_result
+denormalized_result = (noramlized_result * scaling).astype(sample.dtype)
+print("maximum error: {}".format(np.max(np.abs(transformed_result-transformed))))
 
 wavfile.write(sys.argv[3], sample_rate, result)
 
-#freq = fftfreq(len(transformed), 1. / sample_rate)
-#t = np.arange(len(tranformed))
-#plt.plot(t, transformed_result, 'r')
-#plt.plot(t, transformed, 'b')
-#plt.plot(freq, np.abs(transformed_result-transformed), 'r+')
-#plt.show()
